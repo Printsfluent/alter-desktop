@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Download Alter</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh; display: grid; place-items: center;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif;
+      background: #07120f; color: #e8f7f3;
+    }
+    main { width: min(520px, calc(100% - 2rem)); text-align: center; }
+    .mark {
+      width: 72px; height: 72px; margin: 0 auto 1.25rem; border-radius: 20px;
+      background: linear-gradient(145deg, #9ff8e4, #2ee6c5 55%, #0ea88e);
+      display: grid; place-items: center;
+    }
+    .mark svg { width: 40px; height: 40px; }
+    h1 { font-size: 2.2rem; letter-spacing: -0.04em; margin: 0 0 0.35rem; }
+    p { color: #9bb8b1; line-height: 1.5; }
+    .row { display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap; margin-top: 1.5rem; }
+    a.btn {
+      display: inline-block; min-width: 180px; padding: 0.85rem 1.1rem;
+      border-radius: 999px; text-decoration: none; font-weight: 650;
+    }
+    a.mac { background: #2ee6c5; color: #04221c; }
+    a.win { background: #12352e; color: #9ff8e4; outline: 1px solid #1f5a4e; }
+    .hint { margin-top: 1.25rem; font-size: 0.85rem; }
+    .err { color: #ff8a80; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="mark" aria-hidden="true">
+      <svg viewBox="0 0 40 40" fill="none">
+        <path d="M10.5 25.2 20 9.5l9.5 15.7H24.4L20 18.2l-4.4 7z" fill="#04221c"/>
+        <path d="M15.6 27.4h8.8L20 34.2z" fill="#04221c" opacity="0.38"/>
+      </svg>
+    </div>
+    <h1>Alter</h1>
+    <p>Desktop studio for Mac and Windows. Pick your installer below.</p>
+    <div class="row" id="links">
+      <a class="btn mac" href="https://github.com/Printsfluent/alter-desktop/releases/latest">Mac download</a>
+      <a class="btn win" href="https://github.com/Printsfluent/alter-desktop/releases/latest">Windows download</a>
+    </div>
+    <p class="hint" id="status">Loading latest build…</p>
+  </main>
+  <script>
+    const repo = "Printsfluent/alter-desktop";
+    const fallback = `https://github.com/${repo}/releases/latest`;
+    fetch(`https://api.github.com/repos/${repo}/releases/latest`)
+      .then((r) => r.ok ? r.json() : Promise.reject(new Error("No release yet")))
+      .then((rel) => {
+        const assets = rel.assets || [];
+        const mac = assets.find((a) => /\.dmg$/i.test(a.name) || /aarch64|universal|darwin/i.test(a.name));
+        const win = assets.find((a) => /\.exe$|\.msi$/i.test(a.name));
+        const row = document.getElementById("links");
+        if (mac) row.querySelector(".mac").href = mac.browser_download_url;
+        if (win) row.querySelector(".win").href = win.browser_download_url;
+        document.getElementById("status").textContent = `Latest: ${rel.tag_name || rel.name || "release"}`;
+      })
+      .catch(() => {
+        document.getElementById("status").innerHTML = `Builds are publishing. Use the <a href="${fallback}" style="color:#2ee6c5">releases page</a> if a button is not ready yet.`;
+      });
+  </script>
+</body>
+</html>
