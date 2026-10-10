@@ -199,6 +199,7 @@ fn process(tg: &Telegram, cfg: &SpoofConfig, job: &Job) -> Result<(), String> {
             if pct >= reported_progress + 25 {
                 reported_progress = (pct / 25) * 25;
                 println!("job render progress: chat={} percent={pct}", job.chat);
+                tg.send_text(job.chat, Some(job.message_id), &format!("Rendering: {pct}% complete."));
             }
         };
         let mut on_output = |p: &Path| outputs.push(p.to_path_buf());
