@@ -130,6 +130,19 @@ pub fn render(
     on_progress: &mut dyn FnMut(i64),
     on_output: &mut dyn FnMut(&Path),
 ) -> Result<(), String> {
+    render_with_mirror(input, cfg, out_dir, base_name, cancel, false, on_progress, on_output)
+}
+
+pub fn render_with_mirror(
+    input: &str,
+    cfg: &ImageSpoofConfig,
+    out_dir: &Path,
+    base_name: &str,
+    cancel: &Arc<AtomicBool>,
+    mirror: bool,
+    on_progress: &mut dyn FnMut(i64),
+    on_output: &mut dyn FnMut(&Path),
+) -> Result<(), String> {
     std::fs::create_dir_all(out_dir).map_err(|e| e.to_string())?;
     let src = image::open(input).map_err(|e| e.to_string())?.to_rgb8();
     let src_hash = phash(&src); // reference = ORIGINAL source, computed once
@@ -153,7 +166,10 @@ pub fn render(
                 break;
             }
         }
-        let best = best.unwrap();
+        let mut best = best.unwrap();
+        if mirror {
+            imageops::flip_horizontal_in_place(&mut best);
+        }
 
         let out_path: PathBuf = out_dir.join(format!("{base_name}_{:03}.jpg", idx + 1));
         write_jpeg(&best, &out_path, jpeg_quality(&mut rng))?;

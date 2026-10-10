@@ -12,6 +12,7 @@ dist
 dist-ssr
 *.local
 src-tauri/target
+/bot/target/
 src-tauri/gen/schemas
 
 # Editor directories and files
