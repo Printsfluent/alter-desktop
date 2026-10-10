@@ -368,7 +368,7 @@ fn main() {
             let owner_id = from["id"].as_i64().unwrap_or(0);
             let pending_key = (chat, owner_id);
             if text.starts_with("/start") || text.starts_with("/help") {
-                tg.send_text(chat, None, HELP);
+                tg.send_help_with_keyboard(chat, HELP);
                 continue;
             }
 

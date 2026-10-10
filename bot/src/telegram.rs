@@ -88,6 +88,23 @@ impl Telegram {
         }
     }
 
+    pub fn send_help_with_keyboard(&self, chat: i64, text: &str) {
+        if let Err(e) = self.call("sendMessage", json!({
+            "chat_id": chat,
+            "text": text,
+            "reply_markup": {
+                "keyboard": [
+                    [{ "text": "/start" }, { "text": "/help" }],
+                    [{ "text": "/id" }, { "text": "/cancel" }]
+                ],
+                "resize_keyboard": true,
+                "is_persistent": true
+            }
+        })) {
+            eprintln!("sendMessage with command keyboard to {chat} failed: {e}");
+        }
+    }
+
     pub fn edit_text(&self, chat: i64, message_id: i64, text: &str) {
         if let Err(e) = self.call("editMessageText", json!({
             "chat_id": chat,
