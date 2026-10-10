@@ -47,6 +47,21 @@ impl Telegram {
         self.call("deleteWebhook", json!({ "drop_pending_updates": false })).map(|_| ())
     }
 
+    pub fn configure_command_menu(&self) -> Result<(), String> {
+        self.call("setMyCommands", json!({
+            "commands": [
+                { "command": "start", "description": "Start the bot" },
+                { "command": "help", "description": "Show help" },
+                { "command": "id", "description": "Show your Telegram ID" },
+                { "command": "cancel", "description": "Cancel a pending upload" }
+            ]
+        }))?;
+        self.call("setChatMenuButton", json!({
+            "menu_button": { "type": "commands" }
+        }))?;
+        Ok(())
+    }
+
     pub fn updates(&self, offset: i64) -> Result<Vec<Value>, String> {
         let res = self.call(
             "getUpdates",

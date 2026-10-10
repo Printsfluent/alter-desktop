@@ -306,6 +306,10 @@ fn main() {
     if let Err(e) = tg.delete_webhook() {
         eprintln!("deleteWebhook failed: {e}");
     }
+    match tg.configure_command_menu() {
+        Ok(()) => println!("Telegram command menu configured"),
+        Err(e) => eprintln!("Telegram command menu setup failed: {e}"),
+    }
 
     // Jobs run one at a time; small Render instances can't encode in parallel.
     let queued = Arc::new(AtomicUsize::new(0));
