@@ -94,8 +94,8 @@ impl Telegram {
             "text": text,
             "reply_markup": {
                 "keyboard": [
-                    [{ "text": "/start" }, { "text": "/help" }],
-                    [{ "text": "/id" }, { "text": "/cancel" }]
+                    [{ "text": "START" }],
+                    [{ "text": "HELP" }, { "text": "ID" }]
                 ],
                 "resize_keyboard": true,
                 "is_persistent": true

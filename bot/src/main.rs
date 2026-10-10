@@ -351,7 +351,7 @@ fn main() {
             let from = &msg["from"];
             let text = msg["text"].as_str().unwrap_or("").trim();
 
-            if text.starts_with("/id") {
+            if text.starts_with("/id") || text.eq_ignore_ascii_case("ID") {
                 let uid = from["id"].as_i64().unwrap_or(0);
                 tg.send_text(chat, Some(message_id), &format!("Your Telegram ID is {uid}"));
                 continue;
@@ -367,7 +367,9 @@ fn main() {
             }
             let owner_id = from["id"].as_i64().unwrap_or(0);
             let pending_key = (chat, owner_id);
-            if text.starts_with("/start") || text.starts_with("/help") {
+            if text.starts_with("/start") || text.starts_with("/help")
+                || text.eq_ignore_ascii_case("START") || text.eq_ignore_ascii_case("HELP")
+            {
                 tg.send_help_with_keyboard(chat, HELP);
                 continue;
             }
