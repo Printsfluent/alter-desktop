@@ -56,12 +56,30 @@ impl Telegram {
     }
 
     pub fn send_text(&self, chat: i64, reply_to: Option<i64>, text: &str) {
+        let _ = self.send_text_with_id(chat, reply_to, text);
+    }
+
+    pub fn send_text_with_id(&self, chat: i64, reply_to: Option<i64>, text: &str) -> Option<i64> {
         let mut body = json!({ "chat_id": chat, "text": text });
         if let Some(id) = reply_to {
             body["reply_parameters"] = json!({ "message_id": id, "allow_sending_without_reply": true });
         }
-        if let Err(e) = self.call("sendMessage", body) {
-            eprintln!("sendMessage to {chat} failed: {e}");
+        match self.call("sendMessage", body) {
+            Ok(result) => result["message_id"].as_i64(),
+            Err(e) => {
+                eprintln!("sendMessage to {chat} failed: {e}");
+                None
+            }
+        }
+    }
+
+    pub fn edit_text(&self, chat: i64, message_id: i64, text: &str) {
+        if let Err(e) = self.call("editMessageText", json!({
+            "chat_id": chat,
+            "message_id": message_id,
+            "text": text
+        })) {
+            eprintln!("editMessageText in chat {chat} failed: {e}");
         }
     }
 

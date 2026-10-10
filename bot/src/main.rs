@@ -182,12 +182,14 @@ fn process(tg: &Telegram, cfg: &SpoofConfig, job: &Job) -> Result<(), String> {
         let input = work.join(format!("input.{}", if job.is_image { image_ext(&job.file_name) } else { input_ext(&job.file_name) }));
         let media_kind = if job.is_image { "image" } else { "video" };
         println!("job start: chat={} type={} copies={} mirror={}", job.chat, media_kind, job.copies, job.mirror);
-        tg.send_text(job.chat, Some(job.message_id), &format!("Starting: downloading your {media_kind}…"));
+        let status_message_id = tg.send_text_with_id(job.chat, Some(job.message_id), &format!("Starting: downloading your {media_kind}…"));
         tg.typing_video(job.chat);
         tg.download(&job.file_id, &input)?;
         let input_size = std::fs::metadata(&input).map(|m| m.len()).unwrap_or(0);
         println!("job download complete: chat={} bytes={input_size}", job.chat);
-        tg.send_text(job.chat, Some(job.message_id), &format!("Download complete. Rendering {} variant(s)…", job.copies));
+        if let Some(status_id) = status_message_id {
+            tg.edit_text(job.chat, status_id, &format!("Download complete. Rendering {} variant(s): 0%", job.copies));
+        }
 
         let base = format!("alter_{}", &uuid::Uuid::new_v4().simple().to_string()[..8]);
         let out_dir = work.join("out");
@@ -199,7 +201,9 @@ fn process(tg: &Telegram, cfg: &SpoofConfig, job: &Job) -> Result<(), String> {
             if pct >= reported_progress + 25 {
                 reported_progress = (pct / 25) * 25;
                 println!("job render progress: chat={} percent={pct}", job.chat);
-                tg.send_text(job.chat, Some(job.message_id), &format!("Rendering: {pct}% complete."));
+                if let Some(status_id) = status_message_id {
+                    tg.edit_text(job.chat, status_id, &format!("Rendering: {pct}% complete."));
+                }
             }
         };
         let mut on_output = |p: &Path| outputs.push(p.to_path_buf());
@@ -214,7 +218,9 @@ fn process(tg: &Telegram, cfg: &SpoofConfig, job: &Job) -> Result<(), String> {
 
         let total = outputs.len();
         println!("job render complete: chat={} outputs={total}", job.chat);
-        tg.send_text(job.chat, Some(job.message_id), &format!("Rendering complete. Sending {total} output(s)…"));
+        if let Some(status_id) = status_message_id {
+            tg.edit_text(job.chat, status_id, &format!("Rendering complete. Sending {total} output(s)…"));
+        }
         for (i, path) in outputs.iter().enumerate() {
             let size = std::fs::metadata(path).map(|m| m.len()).unwrap_or(0);
             if size > MAX_UPLOAD_BYTES {
@@ -236,7 +242,9 @@ fn process(tg: &Telegram, cfg: &SpoofConfig, job: &Job) -> Result<(), String> {
             else { tg.send_video(job.chat, job.message_id, path, &caption)?; }
             println!("job upload complete: chat={} copy={}/{}", job.chat, i + 1, total);
         }
-        tg.send_text(job.chat, Some(job.message_id), "All variants sent.");
+        if let Some(status_id) = status_message_id {
+            tg.edit_text(job.chat, status_id, "All variants sent.");
+        }
         Ok(())
     })();
     let _ = std::fs::remove_dir_all(&work);
