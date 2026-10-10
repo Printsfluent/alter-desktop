@@ -180,14 +180,27 @@ fn process(tg: &Telegram, cfg: &SpoofConfig, job: &Job) -> Result<(), String> {
     std::fs::create_dir_all(&work).map_err(|e| e.to_string())?;
     let result = (|| {
         let input = work.join(format!("input.{}", if job.is_image { image_ext(&job.file_name) } else { input_ext(&job.file_name) }));
+        let media_kind = if job.is_image { "image" } else { "video" };
+        println!("job start: chat={} type={} copies={} mirror={}", job.chat, media_kind, job.copies, job.mirror);
+        tg.send_text(job.chat, Some(job.message_id), &format!("Starting: downloading your {media_kind}…"));
         tg.typing_video(job.chat);
         tg.download(&job.file_id, &input)?;
+        let input_size = std::fs::metadata(&input).map(|m| m.len()).unwrap_or(0);
+        println!("job download complete: chat={} bytes={input_size}", job.chat);
+        tg.send_text(job.chat, Some(job.message_id), &format!("Download complete. Rendering {} variant(s)…", job.copies));
 
         let base = format!("alter_{}", &uuid::Uuid::new_v4().simple().to_string()[..8]);
         let out_dir = work.join("out");
         let cancel = Arc::new(AtomicBool::new(false));
         let mut outputs: Vec<PathBuf> = Vec::new();
-        let mut on_progress = |_pct: i64| {};
+        let mut reported_progress = 0i64;
+        let mut on_progress = |pct: i64| {
+            let pct = pct.clamp(0, 100);
+            if pct >= reported_progress + 25 {
+                reported_progress = (pct / 25) * 25;
+                println!("job render progress: chat={} percent={pct}", job.chat);
+            }
+        };
         let mut on_output = |p: &Path| outputs.push(p.to_path_buf());
         if job.is_image {
             spoof_image::render_with_mirror(&input.to_string_lossy(), &image_config_from_env(job.copies), &out_dir, &base, &cancel, job.mirror, &mut on_progress, &mut on_output)?;
@@ -199,6 +212,8 @@ fn process(tg: &Telegram, cfg: &SpoofConfig, job: &Job) -> Result<(), String> {
         }
 
         let total = outputs.len();
+        println!("job render complete: chat={} outputs={total}", job.chat);
+        tg.send_text(job.chat, Some(job.message_id), &format!("Rendering complete. Sending {total} output(s)…"));
         for (i, path) in outputs.iter().enumerate() {
             let size = std::fs::metadata(path).map(|m| m.len()).unwrap_or(0);
             if size > MAX_UPLOAD_BYTES {
@@ -215,9 +230,12 @@ fn process(tg: &Telegram, cfg: &SpoofConfig, job: &Job) -> Result<(), String> {
             }
             tg.typing_video(job.chat);
             let caption = if total > 1 { format!("Spoofed copy {}/{}", i + 1, total) } else { "Spoofed".into() };
+            println!("job upload started: chat={} copy={}/{} bytes={size}", job.chat, i + 1, total);
             if job.is_image { tg.send_document(job.chat, job.message_id, path, &caption)?; }
             else { tg.send_video(job.chat, job.message_id, path, &caption)?; }
+            println!("job upload complete: chat={} copy={}/{}", job.chat, i + 1, total);
         }
+        tg.send_text(job.chat, Some(job.message_id), "All variants sent.");
         Ok(())
     })();
     let _ = std::fs::remove_dir_all(&work);
@@ -311,6 +329,7 @@ fn main() {
         for update in updates {
             if let Some(id) = update["update_id"].as_i64() {
                 offset = offset.max(id + 1);
+                println!("telegram update received: {id}");
             }
             let msg = &update["message"];
             let (Some(chat), Some(message_id)) = (msg["chat"]["id"].as_i64(), msg["message_id"].as_i64()) else {
@@ -402,6 +421,7 @@ fn main() {
                 continue;
             }
             pending.insert(pending_key, PendingMedia { message_id, file_id, file_name, is_image, step: PendingStep::Copies });
+            println!("media queued for configuration: chat={} type={} bytes={size}", chat, if is_image { "image" } else { "video" });
             tg.send_text(chat, Some(message_id), "How many variants do you want? Reply with a number from 1 to 5.");
         }
     }
